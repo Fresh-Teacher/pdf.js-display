@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>File Pagination</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.8.335/pdf.min.js"></script>
+  <style>
+    #file-container {
+      margin-bottom: 20px;
+    }
+    #pagination-container a {
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="file-container"></div>
+  <div id="pagination-container"></div>
+
+  <script>
+    // Set the batch size
+    const batchSize = 50;
+
+    // Get all the files in the repository
+    const files = [...document.querySelectorAll('a.js-navigation-open')]
+      .filter(el => el.getAttribute('aria-label') === 'file')
+      .map(el => ({
+        name: el.textContent.trim(),
+        url: el.getAttribute('href'),
+      }));
+
+    // Define a function to display a batch of files
+    function displayFiles(pageNum) {
+      // Calculate the start and end indices for the batch
+      const startIndex = (pageNum - 1) * batchSize;
+      const endIndex = Math.min(startIndex + batchSize, files.length);
+
+      // Clear the existing files from the container
+      const container = document.getElementById('file-container');
+      container.innerHTML = '';
+
+      // Display the files in the batch
+      for (let i = startIndex; i < endIndex; i++) {
+        const file = files[i];
+        const link = document.createElement('a');
+        link.href = file.url;
+        link.textContent = file.name;
+        container.appendChild(link);
+        container.appendChild(document.createElement('br'));
+      }
+    }
+
+    // Calculate the number of pages needed for the files
+    const numPages = Math.ceil(files.length / batchSize);
+
+    // Create navigation links for each page
+    for (let i = 1; i <= numPages; i++) {
+      const link = document.createElement('a');
+      link.href = '#';
+      link.textContent = i;
+      link.addEventListener('click', function(event) {
+        event.preventDefault();
+        displayFiles(i);
+      });
+      document.getElementById('pagination-container').appendChild(link);
+    }
+
+    // Display the first page of files by default
+    displayFiles(1);
+  </script>
+</body>
+</html>
