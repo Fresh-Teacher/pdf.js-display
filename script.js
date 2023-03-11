@@ -1,137 +1,102 @@
-const btns = document.querySelectorAll(".btn");
-const storeProducts = document.querySelectorAll(".store-product");
 
-for (let i = 0; i < btns.length; i++) {
-    btns[i].addEventListener("click", function(e) {
-        const current = document.getElementsByClassName("active");
-        current[0].className = current[0].className.replace(" active", "");
-        this.className += " active";
-                                                                        
-        // Switch Tab content
-        const filter = e.target.dataset.filter;
-        // console.log(filter);
-        storeProducts.forEach((product) => {
-            if (filter === "all") {
-                product.style.display = "block";
-            } else if (product.classList.contains(filter)) {
-                product.style.display = "block";
-            } else {
-                product.style.display = "none";
-            }
-        });
-    });
-}
+  // GitHub repository information
+  var owner = 'Fresh-Teacher';
+  var repo = 'secondary';
 
-// SEARCH FILTER
-const search = document.getElementById("search");
-const productName = document.querySelectorAll(".product-details h2");
-const noResult = document.querySelector(".no-result");
+  // API endpoint for retrieving the contents of the repository
+  var apiUrl = 'https://api.github.com/repos/' + owner + '/' + repo + '/contents';
 
-search.addEventListener("keyup", filterProducts);
+  // Loaded via <script> tag, create shortcut to access PDF.js exports.
+  var pdfjsLib = window['pdfjs-dist/build/pdf'];
 
-function filterProducts(e) {
-    const text = e.target.value.toLowerCase();
+  // The workerSrc property shall be specified.
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '//mozilla.github.io/pdf.js/build/pdf.worker.js';
 
-    productName.forEach((product) => {
-        const item = product.textContent;
+  var pdfDoc = null,
+      pageNum = 1,
+      pageRendering = false,
+      pageNumPending = null,
+      scale = 0.8,
+      canvas = document.getElementById('the-canvas'),
+      ctx = canvas.getContext('2d');
 
-        if (item.toLowerCase().indexOf(text) != -1) {
-            product.parentElement.parentElement.style.display = "block";
-            noResult.style.display = "none";
-        } else {
-            product.parentElement.parentElement.style.display = "none";
-            noResult.style.display = "block";
+  /**
+   * Get page info from document, resize canvas accordingly, and render page.
+   * @param num Page number.
+   */
+  function renderPage(num) {
+    pageRendering = true;
+    // Using promise to fetch the page
+    pdfDoc.getPage(num).then(function(page) {
+      var viewport = page.getViewport({scale: scale});
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      // Render PDF page into canvas context
+      var renderContext = {
+        canvasContext: ctx,
+        viewport: viewport
+      };
+      var renderTask = page.render(renderContext);
+
+      // Wait for rendering to finish
+      renderTask.promise.then(function() {
+        pageRendering = false;
+        if (pageNumPending !== null) {
+          // New page rendering is pending
+          renderPage(pageNumPending);
+          pageNumPending = null;
         }
-    });
-}
-
-// Get the navigation drawer and trigger button elements
-var navDrawer = document.getElementById("nav-drawer");
-var navDrawerTrigger = document.getElementById("nav-drawer-trigger");
-
-// When the trigger button is clicked, toggle the navigation drawer
-navDrawerTrigger.addEventListener("click", function() {
-  navDrawer.style.display = (navDrawer.style.display === "block") ? "none" : "block";
-});
-
- // Get the navigation drawer element
-var navDrawer = document.getElementById("nav-drawer");
-
-// Create a new Hammer instance for the navigation drawer element
-var hammer = new Hammer(navDrawer);
-
-// Add a swipe event listener to the Hammer instance
-hammer.on('swipe', function(event) {
-  // Toggle the display of the navigation drawer based on its current display value
-  navDrawer.style.display = (navDrawer.style.display === "block") ? "none" : "block";
-});
-
-// Get the navigation drawer element
-var navDrawer = document.getElementById("nav-drawer");
-
-// Initialize variables to track the start and end positions of the swipe
-var startX = 0;
-var endX = 0;
-
-// Add a touchstart event listener to the navigation drawer element
-navDrawer.addEventListener("touchstart", function(event) {
-  // Get the starting position of the touch
-  startX = event.touches[0].clientX;
-});
-
-// Add a touchend event listener to the navigation drawer element
-navDrawer.addEventListener("touchend", function(event) {
-  // Get the ending position of the touch
-  endX = event.changedTouches[0].clientX;
-
-  // Calculate the distance swiped
-  var distance = startX - endX;
-
-  // If the distance swiped is greater than 50 pixels, close the navigation drawer
-  if (Math.abs(distance) > 50) {
-    navDrawer.style.display = "none";
-  }
-});
-
-      // Get a reference to the navbar element
-      const navbar = document.querySelector('#navbar');
-  
-      // Get all navbar items
-      const navbarItems = document.querySelectorAll("#navbar a");
-      
-      // Add a click event listener to each navbar item
-      navbarItems.forEach(item => {
-        item.addEventListener("click", e => {
-          // Remove the selected class from all navbar items
-          navbarItems.forEach(item => item.classList.remove("selected"));
-          // Add the selected class to the clicked navbar item
-          e.target.classList.add("selected");
-        });
       });
-      
-        // Add an event listener to the navbar that listens for clicks
-        navbar.addEventListener('click', (event) => {
-          // If the clicked element is an anchor tag
-          if (event.target.tagName === 'A') {
-            // Remove the selected class from all buttons
-            navbar.querySelectorAll('a').forEach((button) => {
-              button.classList.remove('selected');
-            });
-            
-            // Add the selected class to the clicked button
-            event.target.classList.add('selected');
-          }
-        });
+    });
 
-        document.addEventListener("touchstart", function(event) {
-         // Check if the clicked element is the navigation drawer or one of its children
-         if (!event.target.closest("#nav-drawer") && navDrawer.style.display === "block") {
-           // If it's not, hide the navigation drawer
-           navDrawer.style.display = "none";
-         }
-       });
- 
-//hide navigation bar
-function hideNav() {
-  document.querySelector('#nav-drawer').classList.add('hidden');
-}
+    // Update page counters
+    document.getElementById('page_num').textContent = num;
+  }
+
+  /**
+   * If another page rendering in progress, waits until the rendering is
+   * finised. Otherwise, executes rendering immediately.
+   */
+  function queueRenderPage(num) {
+    if (pageRendering) {
+      pageNumPending = num;
+    } else {
+      renderPage(num);
+    }
+  }
+
+  /**
+   * Displays previous page.
+   */
+  function onPrevPage() {
+    if (pageNum <= 1) {
+      return;
+    }
+    pageNum--;
+    queueRenderPage(pageNum);
+  }
+  document.getElementById('prev').addEventListener('click', onPrevPage);
+
+  /**
+   * Displays next page.
+   */
+  function onNextPage() {
+    if (pageNum >= pdfDoc.numPages) {
+      return;
+    }
+    pageNum++;
+    queueRenderPage(pageNum);
+  }
+  document.getElementById('next').addEventListener('click', onNextPage);
+
+  /**
+   * Asynchronously downloads PDF.
+   */
+  pdfjsLib.getDocument(apiUrl).promise.then(function(pdfDoc_) {
+    pdfDoc = pdfDoc_;
+    document.getElementById('page_count').textContent = pdfDoc.numPages;
+
+    // Initial/first page rendering
+    renderPage(pageNum);
+  });
